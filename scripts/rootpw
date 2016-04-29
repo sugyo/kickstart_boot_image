@@ -1,0 +1,26 @@
+#!/usr/bin/python
+
+import argparse
+import base64
+import crypt
+import getpass
+import os
+
+parser = argparse.ArgumentParser()
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument('--md5', dest='algo', action='store_const', const='$1$')
+group.add_argument('--sha256', dest='algo', action='store_const', const='$5$')
+group.add_argument('--sha512', dest='algo', action='store_const', const='$6$')
+parser.add_argument('--salt')
+args = parser.parse_args()
+
+password = getpass.getpass("Password: ")
+confirm_password = getpass.getpass("Confirm Password: ")
+if password != confirm_password:
+    print "passwords do not match"
+    exit(1)
+
+if not args.salt:
+    args.salt = base64.b64encode(os.urandom(12))
+print crypt.crypt(password, args.algo + args.salt)
+exit(0)

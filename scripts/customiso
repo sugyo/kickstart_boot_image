@@ -1,0 +1,89 @@
+#!/bin/sh -
+
+PARSER_OUTPUT=$(python - $* <<_EOF_
+import argparse
+parser = argparse.ArgumentParser(prog='$0')
+parser.add_argument('bootiso', help='source ISO file')
+parser.add_argument('isolinuxcfg', help='isolinux.cfg file')
+parser.add_argument('kickstart', help='kickstart file')
+parser.add_argument('output_bootiso', help='output ISO file')
+parser.add_argument('--packages', default='', help='packages')
+parser.add_argument('--overwrite', action='store_true', help='overwrite')
+args=parser.parse_args()
+print """#
+BOOTISO={bootiso}
+ISOLINUXCFG={isolinuxcfg}
+KICKSTART={kickstart}
+OUTPUT_BOOTISO={output_bootiso}
+PACKAGES={packages}
+OVERWRITE={overwrite}
+""".format(**vars(args))
+exit(0)
+_EOF_
+)
+PARSER_STATUS=$?
+case "$PARSER_OUTPUT" in
+\#*) eval "$PARSER_OUTPUT" ;;
+*) echo "$PARSER_OUTPUT"; exit $PARSER_STATUS ;;
+esac
+
+if [ ! -b /dev/loop0 ]; then
+    echo "/dev/loop0 not found"
+    exit 1
+fi
+if [ ! -f "/opt/work/${BOOTISO}" ]; then
+    echo "/opt/work/$BOOTISO not found"
+    exit 1
+fi
+if [ ! -f "/opt/work/${ISOLINUXCFG}" ]; then
+    echo "/opt/work/$ISOLINUXCFG not found"
+    exit 1
+fi
+if [ ! -f "/opt/work/${KICKSTART}" ]; then
+    echo "/opt/work/$KICKSTART not found"
+    exit 1
+fi
+if [ -f "/opt/work/${OUTPUT_BOOTISO}" ]; then
+    if [ "$OVERWRITE" != "True" ]; then
+        echo "/opt/work/$OUTPUT_BOOTISO already exists"
+        exit 1
+    fi
+fi
+if [ -n "${PACKAGES}" ]; then
+    if [ ! -d "/opt/work/${PACKAGES}" ]; then
+        echo "/opt/work/${PACKAGES} not found"
+        exit 1
+    fi
+fi
+
+mkdir /opt/bootiso /opt/custom-bootiso || exit 1
+
+echo "Copy source ISO files to /opt/custom-bootiso"
+mount -r -o loop "/opt/work/${BOOTISO}" /opt/bootiso || exit 1
+cp -rp /opt/bootiso/* /opt/custom-bootiso || exit 1
+umount /opt/bootiso && rmdir /opt/bootiso
+#chmod -R u+w /opt/custom-bootiso
+
+echo "Copy ks.cfg to /opt/custom-bootiso"
+cp "/opt/work/${KICKSTART}" /opt/custom-bootiso/ks.cfg || exit 1
+
+echo "Copy isolinux.cfg to /opt/custom-bootiso"
+cp "/opt/work/${ISOLINUXCFG}" /opt/custom-bootiso/isolinux/isolinux.cfg
+
+if [ -n "$PACKAGES" ]; then
+    echo "Copy RPMs to working directory"
+    cp -p /opt/work/${PACKAGES}/*.rpm /opt/custom-bootiso/Packages/ && \
+    cd /opt/custom-bootiso/Packages && createrepo -dpo .. .
+fi
+
+echo "Create the new ISO file"
+cd /opt/custom-bootiso && mkisofs -o "/opt/work/${OUTPUT_BOOTISO}" \
+    -b isolinux/isolinux.bin \
+    -c isolinux/boot.cat \
+    -no-emul-boot \
+    -boot-load-size 4 \
+    -boot-info-table -J -l -r -T .
+cd /
+rm -rf /opt/custom-bootiso
+
+exit 0
