@@ -2,22 +2,22 @@
 
 PARSER_OUTPUT=$(python - $* <<_EOF_
 import argparse
+import string
 parser = argparse.ArgumentParser(prog='$0')
 parser.add_argument('bootiso', help='source ISO file')
-parser.add_argument('isolinuxcfg', help='isolinux.cfg file')
-parser.add_argument('kickstart', help='kickstart file')
-parser.add_argument('output_bootiso', help='output ISO file')
+parser.add_argument('--isolinuxcfg', help='isolinux.cfg file',
+    default='isolinux.cfg')
+parser.add_argument('--kickstart', help='kickstart file', default='ks.cfg')
+parser.add_argument('--output-bootiso', help='output ISO file',
+    default='custom-boot.iso')
 parser.add_argument('--packages', default='', help='packages')
 parser.add_argument('--overwrite', action='store_true', help='overwrite')
 args=parser.parse_args()
-print """#
-BOOTISO={bootiso}
-ISOLINUXCFG={isolinuxcfg}
-KICKSTART={kickstart}
-OUTPUT_BOOTISO={output_bootiso}
-PACKAGES={packages}
-OVERWRITE={overwrite}
-""".format(**vars(args))
+tr=string.maketrans('-','_')
+print '#'
+for k, v in vars(args).items():
+    k = k.upper().translate(tr)
+    print '{0}={1}'.format(k, v)
 exit(0)
 _EOF_
 )

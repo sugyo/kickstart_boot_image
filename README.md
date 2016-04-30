@@ -21,8 +21,12 @@ Create custom boot image
 
 Example:
 ```
-docker run --privileged -v $(pwd):/opt/work -i -t create_ks_bootiso \
-    customiso CentOS-7-x86_64-DVD-1511.iso isolinux.cfg ks.cfg custom-boot.iso
+docker run --privileged -v $(pwd):/opt/work -t create_ks_bootiso \
+    customiso \
+    --isolinuxcfg isolinux.cfg \
+    --kickstart ks.cfg \
+    --output-bootiso custom-boot.iso \
+    CentOS-7-x86_64-DVD-1511.iso
 docker rm $(docker ps -a -q)
 ```
 
