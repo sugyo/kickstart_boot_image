@@ -5,7 +5,7 @@ Build Docker image
 ---
 ```
 docker build -t create_ks_bootiso .
-docker rmi $(docker images | awk '/none/{print $3}')
+docker images | awk '/none/{print $3}' | xargs -r docker rmi
 ```
 
 Download th CD / DVD images
@@ -27,7 +27,7 @@ docker run --privileged -v $(pwd):/opt/work -t create_ks_bootiso \
     --kickstart ks.cfg \
     --output-bootiso custom-boot.iso \
     CentOS-7-x86_64-DVD-1511.iso
-docker rm $(docker ps -a -q)
+docker ps -a -q|xargs -r docker rm
 ```
 
 Check validity of your Kickstart file
